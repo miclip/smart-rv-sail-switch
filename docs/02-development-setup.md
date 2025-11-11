@@ -39,9 +39,7 @@ smart-rv-sail-switch/
 │
 ├── test/                  # Unit tests
 │
-├── examples/              # Example sketches
-│   ├── sensor-test/      # Simple sensor test
-│   └── ms5611-test/      # MS5611 sensor test
+├── scripts/               # Build and deployment scripts
 │
 ├── hardware/              # Circuit docs
 ├── docs/                  # Documentation
@@ -66,15 +64,10 @@ cd smart-rv-sail-switch
 
 ### 3. Configure PlatformIO Environment
 
-The project has multiple environments in `platformio.ini`:
+The project has two environments in `platformio.ini`:
 
-**Main Firmware:**
 - **`attiny85`** - Main firmware for real hardware (default)
-- **`wokwi`** - Main firmware for simulation
-
-**Example Sketches:**
-- **`sensor-test`** - Test MPXV5004DP pressure sensor
-- **`ms5611-test`** - Test MS5611 sensor (experimental)
+- **`wokwi`** - Main firmware for Wokwi simulation
 
 **Example configuration:**
 ```ini
@@ -82,21 +75,13 @@ The project has multiple environments in `platformio.ini`:
 platform = atmelavr
 board = attiny85
 upload_protocol = usbtiny
+board_build.f_cpu = 8000000L
 
-[env:sensor-test]
-build_src_filter = +<../examples/sensor-test/>
+[env:wokwi]
+platform = atmelavr
+board = attiny85
+framework = arduino
 ```
-
-**To use examples:**
-```bash
-# Build sensor test
-pio run -e sensor-test
-
-# Upload sensor test to hardware
-pio run -e sensor-test --target upload
-```
-
-See [examples/README.md](../examples/README.md) for full example documentation.
 
 ## Building the Project
 
