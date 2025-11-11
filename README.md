@@ -66,9 +66,6 @@ See [SAFETY.md](SAFETY.md) for complete safety information.
 
 ## How It Works
 
-![How it works](./images/how-it-works.png)
-
-
 ```mermaid
 sequenceDiagram
     participant T as Thermostat

@@ -34,9 +34,6 @@ Relay Contacts:
 
 ## Block Diagram
 
-![Circuit Design Block Diagram](../images/circuit-design-block-diagram.png)
-
-
 ```mermaid
 flowchart TD
     subgraph Furnace["RV Furnace Control Board"]
