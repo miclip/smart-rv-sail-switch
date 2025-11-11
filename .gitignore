@@ -1,0 +1,71 @@
+# Arduino IDE
+*.ino.eep
+*.ino.elf
+*.ino.hex
+*.ino.with_bootloader.hex
+
+# Compiled files
+*.o
+*.hex
+*.elf
+*.lst
+*.lss
+*.sym
+*.map
+
+# IDE files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Build directories
+build/
+.build/
+
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+.clang_complete
+.gcc-flags.json
+CMakeListsPrivate.txt
+
+# Documentation build files
+*.pdf
+*.aux
+*.log
+*.out
+
+# KiCad
+*.bak
+*.kicad_pcb-bak
+*-save.pro
+*-save.kicad_pcb
+*.kicad_pcb.lck
+*.sch.lck
+fp-info-cache
+
+# Eagle
+*.b#*
+*.s#*
+*.l#*
+
+# Fritzing
+*.fzz~
+
+# Images - only ignore generated/temp images
+*_temp.*
+*_backup.*
+
+# Personal notes
+notes.txt
+TODO.txt
+*.local
+
+# OS
+.Spotlight-V100
+.Trashes
