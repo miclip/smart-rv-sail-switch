@@ -1,0 +1,19 @@
+{
+  "folders": [
+    {
+      "name": "Smart Sail Switch (Main Device)",
+      "path": "."
+    },
+    {
+      "name": "Blower Simulator",
+      "path": "blower-simulator"
+    }
+  ],
+  "settings": {
+    "files.associations": {
+      "*.ino": "cpp",
+      "platformio.ini": "ini"
+    },
+    "C_Cpp.default.configurationProvider": "platformio.platformio-ide"
+  }
+}
