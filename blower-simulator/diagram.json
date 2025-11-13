@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "author": "miclip",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-attiny85",
+      "id": "tiny",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_power",
+      "top": -48,
+      "left": 96,
+      "attrs": { "color": "green", "label": "Power (PB1)" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_ignition",
+      "top": -48,
+      "left": 144,
+      "attrs": { "color": "red", "label": "Ignition (PB4)" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r_power",
+      "top": 19.2,
+      "left": 105.6,
+      "rotate": 90,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r_ignition",
+      "top": 19.2,
+      "left": 153.6,
+      "rotate": 90,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot_speed",
+      "top": 67.2,
+      "left": 38.4,
+      "rotate": 270,
+      "attrs": { "label": "Fan Speed Control", "value": "0" }
+    },
+    {
+      "type": "wokwi-slide-switch",
+      "id": "sw_sail_circuit",
+      "top": 67.2,
+      "left": -57.6,
+      "attrs": { "label": "Sail Circuit (from device)", "value": "0" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r_pulldown",
+      "top": 115.2,
+      "left": -48,
+      "rotate": 90,
+      "attrs": { "value": "10000" }
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "motor_fan",
+      "top": 180,
+      "left": 100,
+      "attrs": { "label": "Fan (simulated as servo)" }
+    }
+  ],
+  "connections": [
+    [ "tiny:PB1", "r_power:1", "green", [] ],
+    [ "r_power:2", "led_power:A", "green", [] ],
+    [ "led_power:C", "tiny:GND.1", "black", [] ],
+
+    [ "tiny:PB4", "r_ignition:1", "red", [] ],
+    [ "r_ignition:2", "led_ignition:A", "red", [] ],
+    [ "led_ignition:C", "tiny:GND.1", "black", [] ],
+
+    [ "pot_speed:VCC", "tiny:VCC", "red", [] ],
+    [ "pot_speed:GND", "tiny:GND.1", "black", [] ],
+    [ "pot_speed:SIG", "tiny:PB2", "blue", [] ],
+
+    [ "sw_sail_circuit:1", "tiny:VCC", "red", [] ],
+    [ "sw_sail_circuit:2", "tiny:PB3", "yellow", [] ],
+    [ "r_pulldown:1", "tiny:PB3", "yellow", [] ],
+    [ "r_pulldown:2", "tiny:GND.1", "black", [] ],
+
+    [ "motor_fan:V+", "tiny:VCC", "red", [] ],
+    [ "motor_fan:GND", "tiny:GND.1", "black", [] ],
+    [ "motor_fan:PWM", "tiny:PB0", "orange", [] ]
+  ],
+  "dependencies": {}
+}
