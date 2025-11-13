@@ -134,7 +134,9 @@ jobs:
         env:
           WOKWI_CLI_TOKEN: ${{ secrets.WOKWI_CLI_TOKEN }}
         run: |
-          ~/.wokwi/bin/wokwi-cli . --timeout 10000
+          # Run simulation for 5 seconds to verify it starts and runs without errors
+          # Exit code 42 = timeout (expected for continuous firmware)
+          ~/.wokwi/bin/wokwi-cli . --timeout 5000 || [ $? -eq 42 ]
         timeout-minutes: 2
 
       - name: Simulation summary
