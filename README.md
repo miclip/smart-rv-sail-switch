@@ -111,16 +111,75 @@ sequenceDiagram
 6. Control board sees closed sail circuit -> proceeds with ignition
 7. On heat cycle end, relay opens and system powers down
 
+## Firmware Releases
+
+### Downloading Pre-built Firmware
+
+Pre-built firmware binaries are available in [GitHub Releases](https://github.com/miclip/smart-rv-sail-switch/releases). Each release includes:
+
+- `smart-sail-switch-vX.X.X.hex` - Main device firmware
+- `blower-simulator-vX.X.X.hex` - Test rig firmware
+- `checksums.txt` - SHA256 checksums for verification
+
+Download the appropriate `.hex` file and flash it to your ATtiny85 using your programmer.
+
+### Building from Source
+
+All firmware builds automatically via GitHub Actions on every commit. The workflow:
+
+1. **Continuous Integration** - Builds both firmwares on every push/PR to `main` or `develop`
+2. **Automated Releases** - Creates GitHub releases with firmware binaries when version tags are pushed
+
+**To build locally:**
+```bash
+# Main device
+pio run -e attiny85
+
+# Blower simulator
+cd blower-simulator
+pio run -e attiny85
+```
+
+### Creating a Release
+
+For maintainers creating new releases:
+
+1. Update version in `CHANGELOG.md`:
+   ```markdown
+   ## [v1.0.0] - 2025-01-15
+   ### Added
+   - New feature description
+   ```
+
+2. Commit changes to `main` branch
+
+3. Create and push a version tag:
+   ```bash
+   git tag -a v1.0.0 -m "Release version 1.0.0"
+   git push origin v1.0.0
+   ```
+
+4. GitHub Actions automatically:
+   - Builds both firmwares
+   - Creates release with hex/elf files
+   - Generates SHA256 checksums
+   - Extracts release notes from CHANGELOG.md
+
+The release will appear at: `https://github.com/miclip/smart-rv-sail-switch/releases`
+
 ## Repository Structure
 
 ```
+├── .github/workflows/     GitHub Actions CI/CD pipeline
 ├── src/                   ATtiny85 firmware (PlatformIO)
+├── blower-simulator/      Test rig controller firmware
 ├── scripts/               Build and deployment scripts for USBtinyISP
 ├── hardware/              Schematics, wiring diagrams, parts list
 ├── docs/                  Step-by-step build and installation guides
 ├── images/                Circuit diagrams and photos
 ├── diagram.json           Wokwi simulation circuit
-└── platformio.ini         Build configuration
+├── platformio.ini         Build configuration
+└── CHANGELOG.md           Version history and release notes
 ```
 
 ## License
