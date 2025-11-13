@@ -83,9 +83,68 @@ jobs:
           echo "- Hex size: ${{ steps.build_info.outputs.hex_size }} bytes" >> $GITHUB_STEP_SUMMARY
           echo "- ELF size: ${{ steps.build_info.outputs.elf_size }} bytes" >> $GITHUB_STEP_SUMMARY
 
+  simulate:
+    name: Wokwi Simulation Test
+    needs: build
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        project:
+          - name: smart-sail-switch
+            path: .
+          - name: blower-simulator
+            path: blower-simulator
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            .pio
+          key: ${{ runner.os }}-pio-${{ hashFiles('**/platformio.ini') }}
+          restore-keys: |
+            ${{ runner.os }}-pio-
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: |
+          python -m pip install --upgrade pip
+          pip install platformio
+
+      - name: Build firmware for Wokwi
+        working-directory: ${{ matrix.project.path }}
+        run: |
+          pio run -e wokwi
+
+      - name: Install Wokwi CLI
+        run: |
+          curl -L https://wokwi.com/ci/install.sh | sh
+
+      - name: Run Wokwi Simulation
+        working-directory: ${{ matrix.project.path }}
+        env:
+          WOKWI_CLI_TOKEN: ${{ secrets.WOKWI_CLI_TOKEN }}
+        run: |
+          ~/.wokwi/bin/wokwi-cli . --timeout 10000
+        timeout-minutes: 2
+
+      - name: Simulation summary
+        run: |
+          echo "### Simulation Test - ${{ matrix.project.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Wokwi simulation completed successfully" >> $GITHUB_STEP_SUMMARY
+
   release:
     name: Create Release
-    needs: build
+    needs: [build, simulate]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
