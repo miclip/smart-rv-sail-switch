@@ -1,0 +1,24 @@
+name: Blower Simulator Tests
+version: 1
+author: miclip
+steps:
+  # Test 1: Wait for startup sequence to complete
+  - delay: 2000ms
+
+  # Test 2: Simulate sail circuit switch closing
+  - set-control:
+      part-id: sw_sail_circuit
+      control: value
+      value: 1
+
+  - delay: 500ms
+
+  # Test 3: Simulate sail circuit switch opening
+  - set-control:
+      part-id: sw_sail_circuit
+      control: value
+      value: 0
+
+  - delay: 500ms
+
+  # Test completed - firmware ran without crashing
