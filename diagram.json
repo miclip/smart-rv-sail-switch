@@ -76,7 +76,7 @@
       "id": "sw_sail",
       "top": 67.2,
       "left": -57.6,
-      "attrs": { "label": "Sail Switch (OFF=failed)", "value": "0" }
+      "attrs": { "label": "Sail Switch (LEFT=closed)", "value": "" }
     }
   ],
   "connections": [

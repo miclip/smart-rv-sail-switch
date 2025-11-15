@@ -34,12 +34,22 @@ const int ACTIVE_LED = 0;       // PB0 - Output: Green LED when bypassing
 const int SENSOR_PIN = 1;       // analogRead(1) for PB2 sensor (Wokwi)
 
 // Tunable parameters
-const int PRESSURE_THRESHOLD = 30;  // ADC counts above baseline
+const int PRESSURE_THRESHOLD = 100;  // ADC counts above baseline
 const int MAX_WAIT_SECONDS = 30;
 const int DEBOUNCE_CHECKS = 3;
 
 // Global variables
 uint16_t baselineADC = 0;
+
+// Read averaged sensor value (reduces noise)
+uint16_t readSensorAveraged() {
+  uint32_t sum = 0;
+  for (uint8_t i = 0; i < 8; i++) {
+    sum += analogRead(SENSOR_PIN);
+    delay(1);
+  }
+  return sum >> 3;  // Divide by 8 using bit shift
+}
 
 void setup() {
   // Configure pins
@@ -54,13 +64,8 @@ void setup() {
 
   delay(500);
 
-  // Calibrate baseline pressure (blower NOT running yet)
-  uint32_t sum = 0;
-  for (int i = 0; i < 8; i++) {
-    sum += analogRead(SENSOR_PIN);
-    delay(10);
-  }
-  baselineADC = sum / 8;
+  // Calibrate baseline pressure (blower NOT running yet) using averaging
+  baselineADC = readSensorAveraged();
 
   // Sanity check
   if (baselineADC < 50 || baselineADC > 900) {
@@ -98,20 +103,25 @@ void loop() {
   int waitCount = 0;
 
   while (waitCount < MAX_WAIT_SECONDS * 10) {
-    uint16_t currentADC = analogRead(SENSOR_PIN);
+    uint16_t currentADC = readSensorAveraged();  // Use averaging to reduce noise
     int16_t pressureDelta = currentADC - baselineADC;
 
     if (pressureDelta > PRESSURE_THRESHOLD) {
       consecutiveDetections++;
       if (consecutiveDetections >= DEBOUNCE_CHECKS) {
         airflowDetected = true;
+        // Quick flash to indicate detection
+        digitalWrite(ACTIVE_LED, HIGH);
+        delay(200);
+        digitalWrite(ACTIVE_LED, LOW);
+        delay(200);
         break;
       }
     } else {
       consecutiveDetections = 0;
     }
 
-    delay(100);
+    delay(50);
     waitCount++;
   }
 

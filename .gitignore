@@ -12,6 +12,8 @@
 *.lss
 *.sym
 *.map
+*.ii
+*.s
 
 # IDE files
 .DS_Store
