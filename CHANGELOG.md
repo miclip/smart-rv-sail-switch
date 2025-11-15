@@ -8,9 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 8-sample averaging for sensor readings to reduce noise
+- Automatic baseline calibration on every startup
+- Visual feedback (green LED flash) when airflow is detected
 - Blower simulator test rig for bench testing
 - CI/CD pipeline for automated firmware builds
 - GitHub Actions workflow for releases
+
+### Changed
+- Increased pressure threshold from 30 to 100 ADC counts for more reliable detection
+- Replaced division with bit shifts to avoid ASR instruction issues on ATtiny85
+- Baseline calibration now runs on every startup instead of using EEPROM storage
+- This allows system to adapt to elevation and weather changes automatically
 
 ## [v0.1.0] - Initial Development
 
