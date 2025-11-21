@@ -19,8 +19,10 @@ This project is actively under development and testing. The firmware and hardwar
 - **Hybrid Design**: Works in parallel with the original sail switch (doesn't remove factory safety)
 - **Fail-Safe Operation**: System starts open (safe state), only closes when airflow is confirmed
 - **Zero Power Draw**: Only active when furnace is called for heat
-- **Smart Detection**: Monitors blower state, pressure differential, and original sail switch status
+- **Continuous Monitoring**: Monitors pressure differential and sail switch status continuously
 - **Auto-Calibration**: Calibrates pressure baseline at each heat cycle start
+- **Hysteresis**: Prevents rapid toggling with stable airflow detection
+- **Timeout Protection**: Error state if airflow detected but not maintained
 - **Visual Indicators**: LED status indicators for troubleshooting
 
 ## Important Safety Warning
@@ -107,9 +109,13 @@ sequenceDiagram
 2. System calibrates pressure baseline (blower not yet running)
 3. Furnace control board checks original sail switch is open
 4. Blower motor starts
-5. **At high altitude**: Original sail may fail to close, but Smart Sail Switch detects pressure differential and closes relay
-6. Control board sees closed sail circuit -> proceeds with ignition
-7. On heat cycle end, relay opens and system powers down
+5. System continuously monitors pressure sensor:
+   - Detects airflow when pressure exceeds threshold (100 ADC counts above baseline)
+   - Hysteresis prevents false triggers (50 ADC count buffer)
+6. **At high altitude**: If original sail fails to close, Smart Sail Switch detects airflow and closes relay after confirming stable pressure
+7. Control board sees closed sail circuit -> proceeds with ignition
+8. System monitors for timeout: if airflow lost for 30 seconds, enters error state
+9. On heat cycle end, relay opens and system powers down
 
 ## Firmware Releases
 

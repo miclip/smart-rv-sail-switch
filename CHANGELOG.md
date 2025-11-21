@@ -14,12 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Blower simulator test rig for bench testing
 - CI/CD pipeline for automated firmware builds
 - GitHub Actions workflow for releases
+- Continuous pressure monitoring (no blower sense wire needed)
+- Hysteresis on airflow detection to prevent rapid toggling
+- Recoverable error state with timeout detection
 
 ### Changed
 - Increased pressure threshold from 30 to 100 ADC counts for more reliable detection
 - Replaced division with bit shifts to avoid ASR instruction issues on ATtiny85
 - Baseline calibration now runs on every startup instead of using EEPROM storage
 - This allows system to adapt to elevation and weather changes automatically
+- Moved SAIL_SENSE_PIN from PB5 (RESET) to PB3 to avoid ATtiny85 RESET pin conflicts
+- Removed BLOWER_PIN - now uses pressure-based detection instead
+- Simplified wiring: one less wire to tap in furnace installation
 
 ## [v0.1.0] - Initial Development
 

@@ -7,29 +7,39 @@ This document describes the circuit design for the Smart RV Sail Switch.
 ```
 RV Furnace 12V (Thermostat Line)
          |
-         +---[10uF]---[LM7805]---[10uF]--- 5V Rail
-         |             |                     |
-         |            GND                    +-- ATtiny85 VCC (pin 8)
-         |                                   +-- MPXV5004DP VCC
-         |                                   +-- Relay Module VCC
+         +---[100nF]---[L7805]---[100nF+100uF]--- 5V Rail
+         |              |                           |
+         |             GND                          +-- ATtiny85 VCC (pin 8)
+         |                                          +-- MPXV5004DP VCC
+         |                                          +-- Relay Module VCC
          |
-         +---[20K]---+--- PB3 (Blower Sense)
-         |           |
-        GND      [10K]---GND
+         +---[10K]---+--- PB3 (Sail Switch Input)
+                     |
+                    GND
 
-Blower Motor 12V ---[20K]---+--- PB5 (Sail Sense)
-(after sail switch)          |
-                         [10K]---GND
+MPXV5004DP Vout --- PB2 (ADC Input / Analog)
 
-MPXV5004DP Vout --- PB2 (ADC Input)
-
-ATtiny PB4 ---[1K]--- Relay IN
+ATtiny85 PB4 --- Relay Module Signal (IN)
 (pin 3)
+
+ATtiny85 PB0 --- [220Ω] --- Green LED --- GND
+(pin 5)
+
+ATtiny85 PB1 --- [220Ω] --- Red LED --- GND
+(pin 6)
 
 Relay Contacts:
   COM --- Original Sail Terminal 1
   NO  --- Original Sail Terminal 2
   (Parallel with original sail switch)
+
+ISP Programming Header (2x3):
+  1 (MISO) --- PB1
+  2 (VCC)  --- 5V
+  3 (SCK)  --- PB2
+  4 (MOSI) --- PB0
+  5 (RST)  --- PB5 (pin 1)
+  6 (GND)  --- GND
 ```
 
 ## Block Diagram
@@ -57,8 +67,7 @@ flowchart TD
     end
 
     THERMO -->|12V Power| REG
-    BLOWER -.->|Sense PB3| MCU
-    SAIL1 -.->|Monitor PB5| MCU
+    SAIL1 -->|Monitor PB3| MCU
 
     RELAY -->|COM| SAIL1
     RELAY -->|NO| SAIL2
@@ -80,10 +89,10 @@ Convert furnace's 12V to regulated 5V for microcontroller and sensor.
 
 ### Components
 - **Input**: 12V from thermostat line (only live during heat call)
-- **Regulator**: LM7805 (TO-220) or LM1117-5.0 (SOT-223)
-- **Input Cap**: 10uF electrolytic (noise filtering)
-- **Output Cap**: 10uF electrolytic (stability)
-- **Decoupling**: 0.1uF ceramic near ATtiny85
+- **Regulator**: L7805CV-DG (TO-220)
+- **Input Cap**: 100nF ceramic (noise filtering)
+- **Output Caps**: 100nF ceramic + 100µF electrolytic (stability and ripple reduction)
+- **PCB**: Custom PCB from JLCPCB with SMD assembly for resistors and caps
 
 ### Why Switched Power?
 - **Zero parasitic draw** when furnace is off
@@ -98,25 +107,18 @@ Convert furnace's 12V to regulated 5V for microcontroller and sensor.
 
 ## Input Sensing Section
 
-### Blower Detection (PB3)
-**Purpose**: Detect when furnace has energized the blower motor.
-
-**Circuit**:
-- Tap 12V from blower motor positive wire
-- Voltage divider: 20K (top) / 10K (bottom)
-- Output to PB3: ~4V when blower on, 0V when off
-
-**Why?** Know when to expect airflow (don't look for pressure before blower starts).
-
-### Original Sail Monitoring (PB5) - Hybrid Mode
+### Sail Switch Monitoring (PB3) - Hybrid Mode
 **Purpose**: Monitor if original sail switch closed successfully.
 
 **Circuit**:
-- Tap wire after sail switch (before limit switch input on control board)
-- Voltage divider: 20K / 10K
-- Output to PB5: ~4V if sail closed, 0V if open
+- 10K pull-down resistor from PB3 to GND
+- Sail switch wired between PB3 and 5V
+- PB3 reads HIGH when sail closes, LOW when open
 
-**Logic**: Only bypass if airflow detected BUT sail didn't close.
+**Logic**:
+- Continuously monitor pressure sensor for airflow
+- Only bypass if airflow detected AND timeout occurs without sail closing
+- If sail closes normally (PB3 HIGH), relay stays open (not needed)
 
 ### Pressure Sensor (PB2 - ADC)
 **Purpose**: Measure differential pressure = airflow
@@ -130,8 +132,10 @@ Convert furnace's 12V to regulated 5V for microcontroller and sensor.
 - Pin 6 (P3): Not used (second differential port)
 
 **Output Voltage**:
-- No airflow (0 kPa): ~1.0V (ADC ~205)
+- No airflow (0 kPa): ~1.0V (ADC ~205) - baseline calibrated at startup
 - Typical blower (0.3 kPa): ~1.24V (ADC ~254)
+- Threshold: ~100 ADC counts above baseline for airflow detection
+- Hysteresis: 50 ADC counts below threshold to prevent oscillation
 - Maximum (3.92 kPa): ~4.1V (ADC ~840)
 
 **Tubing**:
@@ -153,9 +157,10 @@ Convert furnace's 12V to regulated 5V for microcontroller and sensor.
 - Trigger: Active-high (relay closes when signal HIGH)
 
 **Wiring**:
-- Relay Module IN: to ATtiny PB4 (through 1K resistor if not on module)
-- Relay Module VCC: to 5V
-- Relay Module GND: to ground
+- Relay Module connects via 1x3 female socket (U6 on PCB)
+  - Pin 1: VCC (5V)
+  - Pin 2: GND
+  - Pin 3: Signal from PB4
 - Relay COM: to one sail switch terminal
 - Relay NO: to other sail switch terminal
 
@@ -167,13 +172,14 @@ Convert furnace's 12V to regulated 5V for microcontroller and sensor.
 ## Status LEDs (Optional but Recommended)
 
 ### Red LED (PB1) - Idle/Error
-- **Solid ON**: System idle, waiting for heat call
-- **Fast blink (4 Hz)**: Sensor error - check connections
-- **Off**: Blower running (normal operation mode)
+- **Solid ON**: System idle, no airflow detected
+- **Off**: Airflow active or error state
+- LED indicates system is monitoring but not detecting airflow
 
-### Green LED (PB0) - Active/Bypass
-- **Off**: Normal operation (original sail working or no bypass needed)
-- **Solid ON**: Actively bypassing (relay closed due to failed sail)
+### Green LED (PB0) - Active
+- **Off**: No airflow or error state
+- **Quick flash on airflow start**: Airflow detection confirmed
+- **Solid ON**: Actively bypassing sail switch (relay closed)
 
 ### LED Circuit
 ```
@@ -185,14 +191,14 @@ PB1 or PB0 ---[220-330Ω]---[LED]--- GND
 
 | Pin # | Name | Direction | Purpose |
 |-------|------|-----------|---------|
-| 1 | RESET | - | (Leave unconnected or tie to VCC via 10K) |
-| 2 | PB3 | Input | Blower sense (voltage divider from blower 12V) |
-| 3 | PB4 | Output | Relay control (HIGH = close relay) |
+| 1 | PB5/RESET | - | ISP programming (RESET), do not use as GPIO |
+| 2 | PB3 | Input | Sail switch sense (HIGH when closed, LOW when open) |
+| 3 | PB4 | Output | Relay control (HIGH = close relay/bypass) |
 | 4 | GND | Power | Ground |
-| 5 | PB0 | Output | Green LED (active indicator) |
-| 6 | PB1 | Output | Red LED (idle/error indicator) |
-| 7 | PB2 | Input (ADC) | Pressure sensor Vout (analog) |
-| 8 | VCC | Power | 5V from regulator |
+| 5 | PB0 | Output | Green LED (active indicator), ISP MOSI |
+| 6 | PB1 | Output | Red LED (idle indicator), ISP MISO |
+| 7 | PB2 | Input (ADC) | Pressure sensor Vout (analog), ISP SCK |
+| 8 | VCC | Power | 5V from L7805 regulator |
 
 ## PCB Layout Recommendations
 
@@ -258,9 +264,34 @@ PB1 or PB0 ---[220-330Ω]---[LED]--- GND
 2. Follow [../docs/03-building.md](../docs/03-building.md) for assembly instructions
 3. Test circuit before permanent installation
 
-## Schematic Files
+## PCB Design Files
 
-Detailed schematic diagrams will be added to `images/schematic.png` and potentially KiCad or Fritzing files for those who want to design a custom PCB.
+The project includes a custom PCB designed in EasyEDA Pro and manufactured by JLCPCB:
+
+- **Schematic**: [pcb/Schematic.pdf](pcb/Schematic.pdf) - Full circuit schematic
+- **PCB Layout**: [pcb/PCB_PCB1_2025-11-18.pdf](pcb/PCB_PCB1_2025-11-18.pdf) - Board layout (top and bottom layers)
+- **EasyEDA Project**: Design files available on request
+
+### PCB Assembly Notes
+
+**SMD Components (Assembled by JLCPCB):**
+- R1, R2, R3: 10kΩ 0805 resistors
+- C1, C2: 100nF 0805 ceramic capacitors
+
+**Through-Hole Components (Hand-Solder):**
+- U2: L7805CV-DG voltage regulator
+- U3: ATtiny85-20PU microcontroller
+- LED1, LED2: 3mm status LEDs
+- C3: 100µF electrolytic capacitor
+- H1: 2x3 ISP programming header
+- U1, U6: 1x3 female socket headers
+- U4, U5: 2-pin screw terminals
+
+**External Connections:**
+- U1: MPXV5004DP pressure sensor (3-pin connector)
+- U6: KY-019 relay module (3-pin connector)
+- U4: 12V power input from furnace thermostat line
+- U5: Sail switch monitoring connection
 
 ## Questions?
 

@@ -17,27 +17,24 @@
 ### Voltage Regulation
 | Item | Part Number | Quantity | Specs | Notes |
 |------|-------------|----------|-------|-------|
-| 5V Regulator | LM7805 (TO-220) or LM1117-5.0 (SOT-223) | 1 | 5V output, 1A+ | LM7805 easier for breadboard |
-| Heatsink | TO-220 compatible | 1 | - | Optional but recommended for LM7805 |
+| 5V Regulator | L7805CV-DG (TO-220) | 1 | 5V output, 1A+ | JLCPCB part C3795 |
+| Heatsink | TO-220 compatible | 1 | - | Optional but recommended |
 
 ### Relay Module
 | Item | Part Number | Quantity | Specs | Notes |
 |------|-------------|----------|-------|-------|
 | 5V Relay Module | KY-019 or equivalent | 1 | Single channel, opto-isolated, active-high, 10A contacts | Coil: 5V DC, Contacts: 10A at 12V DC minimum |
 
-### Resistors
-| Value | Quantity | Power Rating | Purpose |
-|-------|----------|--------------|---------|
-| 10K ohm | 3 | 1/4W or 1/2W, 5% tolerance | Voltage dividers (2x in series = 20K, 1x = 10K) |
-| 1K ohm | 1 | 1/4W or 1/2W | Relay driver (if not built into module) |
-| 220-330 ohm | 3 | 1/4W or 1/2W | LED current limiting |
+### Resistors (SMD - Assembled by JLCPCB)
+| Value | Quantity | Package | LCSC Part | Purpose |
+|-------|----------|---------|-----------|---------|
+| 10K ohm | 3 | 0805 SMD | C3016734 | R1: Sail switch pull-down, R2/R3: LED current limiting |
 
 ### Capacitors
-| Value | Quantity | Type | Voltage | Purpose |
-|-------|----------|------|---------|---------|
-| 10uF | 2 | Electrolytic | 25V or higher | Regulator input/output filtering |
-| 0.1uF | 2-3 | Ceramic | 50V | Decoupling (ATtiny and stability) |
-| 100uF | 1 | Electrolytic | 25V or higher | Optional: extra input stability |
+| Value | Quantity | Type | Voltage | LCSC Part | Purpose |
+|-------|----------|------|---------|-----------|---------|
+| 100nF | 2 | Ceramic 0805 SMD | C2830721 | C1/C2: Regulator input/output filtering (assembled by JLCPCB) |
+| 100µF | 1 | Electrolytic through-hole | C2960378 | C3: Output stability (hand-solder) |
 
 ## Optional Protection Components
 
@@ -47,34 +44,41 @@
 | Toggle switch | SPST | 1 | 10A 12V rating | Manual emergency bypass |
 | Fuse holder + fuse | Inline | 1 | 3A-5A | Overcurrent protection |
 
-## LEDs (Status Indicators)
+## LEDs (Status Indicators - Through-Hole, Hand-Solder)
 
-| Type | Quantity | Color | Purpose |
-|------|----------|-------|---------|
-| 5mm LED | 1 | Red | Idle/Error indicator |
-| 5mm LED | 1 | Green | Active/Bypass indicator |
-| 5mm LED | 1 | Yellow | Optional: Calibrating indicator |
+| Type | Quantity | Color | LCSC Part | Purpose |
+|------|----------|-------|-----------|---------|
+| 3mm LED | 1 | Red | C84774 (EVERLIGHT 204-10SDRD/S530-A3-L) | Idle indicator (PB1) |
+| 3mm LED | 1 | Green | C183839 (EVERLIGHT 204-10SUGD/S400-A4) | Active/Bypass indicator (PB0) |
 
 ## Wiring & Connectors
 
+| Item | Quantity | Specs | LCSC Part | Purpose |
+|------|----------|-------|-----------|---------|
+| 2x3 ISP Header | 1 | 2.54mm pitch, male | C42431837 | Programming header (on PCB) |
+| 1x3 Female Socket | 2 | 2.54mm pitch | C18078126 | U1: Pressure sensor, U6: Relay module |
+| 2-pin Screw Terminal | 2 | 5.0mm pitch | C474881 | U4: 12V input, U5: Sail switch |
+| Silicone tubing | 2-3 feet | 1/8" ID (3mm), high-temp rated | - | Sensor to blower duct |
+| Automotive wire | 10-15 feet | 18 AWG, multiple colors | - | Furnace connections |
+| Crimp connectors | 10-15 | Insulated spade or butt connectors | - | Furnace wiring |
+| Heat shrink tubing | Assortment | Various sizes | - | Insulation |
+| Zip ties | 10-20 | Small, UV resistant | - | Cable management |
+
+## PCB Manufacturing
+
 | Item | Quantity | Specs | Purpose |
 |------|----------|-------|---------|
-| Silicone tubing | 2-3 feet | 1/8" ID (3mm), high-temp rated | Sensor to blower duct |
-| Automotive wire | 10-15 feet | 18 AWG, multiple colors | Furnace connections |
-| Crimp connectors | 10-15 | Insulated spade or butt connectors | Furnace wiring |
-| Vampire taps | 2-4 | Posi-Tap or equivalent | Tapping existing wires |
-| Heat shrink tubing | Assortment | Various sizes | Insulation |
-| Zip ties | 10-20 | Small, UV resistant | Cable management |
+| Custom PCB | 1 | EasyEDA Pro design | Schematic in /home/miclip/Downloads/Schematic.pdf |
+| PCB Assembly | - | JLCPCB SMD assembly | R1, R2, R3, C1, C2 pre-soldered |
+| Through-hole parts | - | Hand-solder | ATtiny85, L7805, LEDs, headers, terminals, C3 |
 
-## Prototyping & Assembly
+## Optional: Breadboard Testing
 
 | Item | Quantity | Specs | Purpose |
 |------|----------|-------|---------|
-| Solderless breadboard | 1 | 400 or 830 point | Testing circuit |
+| Solderless breadboard | 1 | 400 or 830 point | Testing circuit before PCB |
 | Jumper wire kit | 1 | Male-male/female | Breadboard connections |
-| Perfboard/protoboard | 1 | 5x7cm or 7x9cm | Permanent assembly |
 | DIP-8 IC socket | 1 | 2.54mm pitch | For ATtiny85 (makes it removable) |
-| Pin headers | 1 strip | Male/female, 2.54mm pitch | Component connections |
 
 ## Enclosure
 
