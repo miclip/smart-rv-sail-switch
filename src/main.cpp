@@ -1,179 +1,215 @@
 /*
- * Smart RV Sail Switch - ATtiny85 Firmware
- *
- * Intelligent sail switch bypass for RV furnaces at high altitude.
- * Uses MPXV5004DP differential pressure sensor to detect blower airflow
- * and provides backup closure signal when original sail switch fails.
- *
- * SAFETY: This operates in parallel with original sail switch (hybrid mode).
- * System starts OPEN (safe), closes relay ONLY when airflow confirmed.
- *
- * Pin Configuration:
- * - PB0 (Arduino 0): Green LED - Active/bypass indicator
- * - PB1 (Arduino 1): Red LED - Idle/error indicator
- * - PB2 (ADC1): MPXV5004DP sensor output (analog) - use analogRead(1)
- * - PB3 (Arduino 3): Sail sense input - monitors original sail switch state
- * - PB4 (Arduino 4): Relay control output - HIGH to close (bypass sail)
- * - PB5: RESET pin (not used as GPIO)
- *
- * Operation:
- * - Continuously monitors pressure sensor for airflow detection
- * - No blower sense wire needed - uses pressure-based detection
- * - Activates relay when airflow detected AND sail switch is open (failed)
- * - Times out and enters error state if no airflow detected
- *
- * Wokwi Simulation Notes:
- * - Remove "frequency" attribute from diagram.json (breaks delay())
- * - Use analogRead(1) for PB2, NOT analogRead(2)
- * - Sail switch needs pull-down resistor
- *
- * License: CC BY-NC-SA 4.0 - See LICENSE file
- * Repository: https://github.com/miclip/smart-rv-sail-switch
+ * Smart RV Sail Switch - ATtiny85 Firmware (SDP810 Version)
+ * SIMPLIFIED TEST VERSION
  */
 #include <Arduino.h>
 
 // Pin definitions
-const int SAIL_SENSE_PIN = 3;   // PB3 - Input: HIGH when original sail closed
-const int RELAY_PIN = 4;        // PB4 - Output: HIGH to close relay (bypass sail)
-const int IDLE_LED = 1;         // PB1 - Output: Red LED for idle/error
-const int ACTIVE_LED = 0;       // PB0 - Output: Green LED when bypassing
-const int SENSOR_PIN = 1;       // analogRead(1) for PB2 sensor (Wokwi)
+#define SDA_PIN PB0
+#define SCL_PIN PB2
+#define LED_PIN PB1
+#define RELAY_PIN PB4
 
-// Tunable parameters
-const int PRESSURE_THRESHOLD = 100;   // ADC counts above baseline to detect airflow
-const int PRESSURE_HYSTERESIS = 50;   // ADC counts below threshold to detect airflow loss
-const int DEBOUNCE_CHECKS = 3;        // Consecutive readings needed for detection
-const int ERROR_TIMEOUT_MS = 30000;   // 30 seconds without airflow = error state
-const int LOOP_DELAY_MS = 100;        // Main loop delay
+// SDP810 I2C address
+#define SDP810_ADDR 0x25
 
-// Global variables
-uint16_t baselineADC = 0;
-bool airflowActive = false;
-int consecutiveDetections = 0;
-int consecutiveLosses = 0;
-unsigned long lastAirflowTime = 0;
+// Threshold - turn on above 5 Pa, turn off below 1 Pa
+// Higher ON threshold confirms real airflow, lower OFF threshold keeps relay engaged
+const int16_t THRESHOLD_ON = 5;
+const int16_t THRESHOLD_OFF = 1;
 
-// Read averaged sensor value (reduces noise)
-uint16_t readSensorAveraged() {
-  uint32_t sum = 0;
-  for (uint8_t i = 0; i < 8; i++) {
-    sum += analogRead(SENSOR_PIN);
-    delay(1);
-  }
-  return sum >> 3;  // Divide by 8 using bit shift
+// Global
+int16_t baselinePa = 0;
+
+// ============ I2C Bit-Bang ============
+
+inline void i2c_delay() { delayMicroseconds(1); }
+
+void i2c_init() {
+  PORTB &= ~((1 << SDA_PIN) | (1 << SCL_PIN));
+  DDRB &= ~((1 << SDA_PIN) | (1 << SCL_PIN));
 }
 
+void i2c_start() {
+  DDRB &= ~(1 << SDA_PIN);
+  DDRB &= ~(1 << SCL_PIN);
+  i2c_delay();
+  DDRB |= (1 << SDA_PIN);
+  i2c_delay();
+  DDRB |= (1 << SCL_PIN);
+  i2c_delay();
+}
+
+void i2c_stop() {
+  DDRB |= (1 << SDA_PIN);
+  i2c_delay();
+  DDRB &= ~(1 << SCL_PIN);
+  i2c_delay();
+  DDRB &= ~(1 << SDA_PIN);
+  i2c_delay();
+}
+
+uint8_t i2c_write(uint8_t data) {
+  for (uint8_t i = 0; i < 8; i++) {
+    if (data & 0x80) {
+      DDRB &= ~(1 << SDA_PIN);
+    } else {
+      DDRB |= (1 << SDA_PIN);
+    }
+    data <<= 1;
+    i2c_delay();
+    DDRB &= ~(1 << SCL_PIN);
+    i2c_delay();
+    DDRB |= (1 << SCL_PIN);
+  }
+  DDRB &= ~(1 << SDA_PIN);
+  i2c_delay();
+  DDRB &= ~(1 << SCL_PIN);
+  i2c_delay();
+  uint8_t ack = (PINB & (1 << SDA_PIN)) ? 1 : 0;
+  DDRB |= (1 << SCL_PIN);
+  return ack;
+}
+
+uint8_t i2c_read(uint8_t send_ack) {
+  uint8_t data = 0;
+  DDRB &= ~(1 << SDA_PIN);
+  for (uint8_t i = 0; i < 8; i++) {
+    data <<= 1;
+    DDRB &= ~(1 << SCL_PIN);
+    i2c_delay();
+    if (PINB & (1 << SDA_PIN)) data |= 1;
+    DDRB |= (1 << SCL_PIN);
+    i2c_delay();
+  }
+  if (send_ack) {
+    DDRB |= (1 << SDA_PIN);
+  } else {
+    DDRB &= ~(1 << SDA_PIN);
+  }
+  i2c_delay();
+  DDRB &= ~(1 << SCL_PIN);
+  i2c_delay();
+  DDRB |= (1 << SCL_PIN);
+  DDRB &= ~(1 << SDA_PIN);
+  return data;
+}
+
+// ============ SDP810 ============
+
+bool sdp810_start() {
+  i2c_start();
+  if (i2c_write((SDP810_ADDR << 1) | 0) != 0) { i2c_stop(); return false; }
+  if (i2c_write(0x36) != 0) { i2c_stop(); return false; }
+  if (i2c_write(0x03) != 0) { i2c_stop(); return false; }
+  i2c_stop();
+  delay(50);
+  return true;
+}
+
+bool sdp810_read(int16_t *pa) {
+  i2c_start();
+  if (i2c_write((SDP810_ADDR << 1) | 1) != 0) { i2c_stop(); return false; }
+  uint8_t msb = i2c_read(1);
+  uint8_t lsb = i2c_read(0);
+  i2c_stop();
+  int16_t raw = (msb << 8) | lsb;
+  *pa = raw / 60;
+  return true;
+}
+
+// ============ Main ============
+
 void setup() {
-  // Configure pins
-  pinMode(SAIL_SENSE_PIN, INPUT);
+  pinMode(LED_PIN, OUTPUT);
   pinMode(RELAY_PIN, OUTPUT);
-  pinMode(IDLE_LED, OUTPUT);
-  pinMode(ACTIVE_LED, OUTPUT);
+  digitalWrite(RELAY_PIN, LOW);
+  digitalWrite(LED_PIN, HIGH);
 
-  // Initialize to safe state - relay open, red LED on
-  digitalWrite(RELAY_PIN, LOW);   // Relay open (safe)
-  digitalWrite(IDLE_LED, HIGH);   // Red LED on (idle)
-  digitalWrite(ACTIVE_LED, LOW);  // Green LED off
+  i2c_init();
+  delay(100);
 
-  delay(500);
-
-  // Calibrate baseline pressure using averaging
-  baselineADC = readSensorAveraged();
-
-  // Sanity check - sensor should read between 50-900 at rest
-  if (baselineADC < 50 || baselineADC > 900) {
-    // Error mode - rapid blink red LED
+  // Init sensor
+  if (!sdp810_start()) {
+    // Error: 2 blinks forever
     while (true) {
-      digitalWrite(IDLE_LED, !digitalRead(IDLE_LED));
-      delay(250);
+      digitalWrite(LED_PIN, HIGH); delay(100);
+      digitalWrite(LED_PIN, LOW); delay(100);
+      digitalWrite(LED_PIN, HIGH); delay(100);
+      digitalWrite(LED_PIN, LOW); delay(500);
     }
   }
 
-  // Blink 3 times to show calibration success
-  for (int i = 0; i < 3; i++) {
-    digitalWrite(IDLE_LED, LOW);
-    delay(100);
-    digitalWrite(IDLE_LED, HIGH);
-    delay(100);
-  }
+  // Wait for sensor to stabilize (warmup)
+  delay(1000);
 
-  // Initialize timing
-  lastAirflowTime = millis();
+  // Read baseline - average 10 readings
+  int32_t sum = 0;
+  for (int i = 0; i < 10; i++) {
+    int16_t pressure;
+    if (!sdp810_read(&pressure)) {
+      // Error: 3 blinks forever
+      while (true) {
+        digitalWrite(LED_PIN, HIGH); delay(100);
+        digitalWrite(LED_PIN, LOW); delay(100);
+        digitalWrite(LED_PIN, HIGH); delay(100);
+        digitalWrite(LED_PIN, LOW); delay(100);
+        digitalWrite(LED_PIN, HIGH); delay(100);
+        digitalWrite(LED_PIN, LOW); delay(500);
+      }
+    }
+    sum += pressure;
+    delay(50);
+  }
+  baselinePa = sum / 10;
+
+  // Success: 3 blinks then off
+  for (int i = 0; i < 3; i++) {
+    digitalWrite(LED_PIN, HIGH); delay(100);
+    digitalWrite(LED_PIN, LOW); delay(100);
+  }
 }
 
 void loop() {
-  // Read current pressure
-  uint16_t currentADC = readSensorAveraged();
-  int16_t pressureDelta = currentADC - baselineADC;
-
-  // Detect airflow onset (with debounce)
-  if (!airflowActive && pressureDelta > PRESSURE_THRESHOLD) {
-    consecutiveDetections++;
-    consecutiveLosses = 0;
-    if (consecutiveDetections >= DEBOUNCE_CHECKS) {
-      airflowActive = true;
-      lastAirflowTime = millis();
-      // Quick flash to indicate detection
-      digitalWrite(ACTIVE_LED, HIGH);
-      delay(200);
-      digitalWrite(ACTIVE_LED, LOW);
-    }
-  }
-  // Detect airflow loss (with hysteresis and debounce)
-  else if (airflowActive && pressureDelta < (PRESSURE_THRESHOLD - PRESSURE_HYSTERESIS)) {
-    consecutiveLosses++;
-    consecutiveDetections = 0;
-    if (consecutiveLosses >= DEBOUNCE_CHECKS) {
-      airflowActive = false;
-    }
-  }
-  // Reset counters if in stable state
-  else {
-    if (airflowActive) {
-      consecutiveLosses = 0;
-      lastAirflowTime = millis();
-    } else {
-      consecutiveDetections = 0;
-    }
+  int16_t currentPa;
+  if (!sdp810_read(&currentPa)) {
+    // Read error - rapid blink, but DON'T change relay state
+    digitalWrite(LED_PIN, HIGH); delay(30);
+    digitalWrite(LED_PIN, LOW); delay(30);
+    return;
   }
 
-  // Control relay and LEDs based on state
-  if (airflowActive) {
-    // Airflow detected - turn off idle LED
-    digitalWrite(IDLE_LED, LOW);
+  int16_t delta = currentPa - baselinePa;
 
-    // Hybrid mode: only bypass if sail switch is open (failed)
-    if (digitalRead(SAIL_SENSE_PIN) == LOW) {
-      digitalWrite(RELAY_PIN, HIGH);    // Close relay (bypass)
-      digitalWrite(ACTIVE_LED, HIGH);   // Green LED on
-    } else {
-      digitalWrite(RELAY_PIN, LOW);     // Relay open (sail switch working)
-      digitalWrite(ACTIVE_LED, LOW);    // Green LED off
-    }
-  } else {
-    // No airflow - idle state
-    digitalWrite(RELAY_PIN, LOW);       // Relay open (safe)
-    digitalWrite(ACTIVE_LED, LOW);      // Green LED off
-    digitalWrite(IDLE_LED, HIGH);       // Red LED on (idle)
+  // Hysteresis control with time-based debounce for turn-off
+  static bool relayOn = false;
+  static unsigned long lowStartTime = 0;
+  const unsigned long OFF_DELAY_MS = 60000;  // 60 seconds (1 min) to turn off
 
-    // Check for timeout error (no airflow for too long after initial calibration)
-    // Only trigger if we've been running for a while and never seen airflow
-    if (millis() - lastAirflowTime > ERROR_TIMEOUT_MS && millis() > ERROR_TIMEOUT_MS) {
-      // Error state - rapid blink red LED
-      while (true) {
-        digitalWrite(IDLE_LED, !digitalRead(IDLE_LED));
-        delay(250);
-
-        // Check if airflow returns - allow recovery
-        currentADC = readSensorAveraged();
-        pressureDelta = currentADC - baselineADC;
-        if (pressureDelta > PRESSURE_THRESHOLD) {
-          lastAirflowTime = millis();
-          break;  // Exit error state
-        }
+  if (!relayOn && delta >= THRESHOLD_ON) {
+    // Turn ON immediately when airflow detected
+    relayOn = true;
+    lowStartTime = 0;
+    digitalWrite(RELAY_PIN, HIGH);
+  } else if (relayOn) {
+    if (delta < THRESHOLD_OFF) {
+      // Pressure is low - start or continue timing
+      if (lowStartTime == 0) {
+        lowStartTime = millis();
+      } else if (millis() - lowStartTime >= OFF_DELAY_MS) {
+        // Been low for 5 seconds - turn off
+        relayOn = false;
+        digitalWrite(RELAY_PIN, LOW);
+        lowStartTime = 0;
       }
+    } else {
+      // Pressure is good - reset timer
+      lowStartTime = 0;
     }
   }
 
-  delay(LOOP_DELAY_MS);
+  // LED shows state: ON = airflow detected, OFF = idle
+  digitalWrite(LED_PIN, relayOn ? HIGH : LOW);
+
+  delay(100);
 }

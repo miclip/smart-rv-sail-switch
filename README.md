@@ -6,7 +6,7 @@ An intelligent sail switch bypass for RV furnaces operating at high altitude usi
 
 This project provides a safety-conscious solution for RV furnaces (Dometic/Atwood HydroFlame) that fail to operate reliably at high altitudes. At elevations above 6,000ft, thinner air may not provide enough force to close the mechanical sail switch, preventing the furnace from igniting even when proper airflow exists.
 
-The Smart Sail Switch uses a differential pressure sensor (MPXV5004DP) to directly measure blower airflow and intelligently bypass a failed sail switch only when safe conditions are confirmed.
+The Smart Sail Switch uses a differential pressure sensor (SDP810-500Pa) to directly measure blower airflow and intelligently bypass a failed sail switch only when safe conditions are confirmed.
 
 ## Project Status
 
@@ -61,7 +61,7 @@ See [SAFETY.md](SAFETY.md) for complete safety information.
 ## Quick Specs
 
 - **Microcontroller**: ATtiny85 (8MHz internal clock)
-- **Pressure Sensor**: MPXV5004DP (0-3.92 kPa differential)
+- **Pressure Sensor**: SDP810-500Pa (±500 Pa differential, I2C)
 - **Power**: 12V from furnace thermostat line (stepped to 5V)
 - **Output**: 5V relay module (isolated switching)
 - **Current Draw**: ~50mA when active, 0mA when furnace off
@@ -110,8 +110,8 @@ sequenceDiagram
 3. Furnace control board checks original sail switch is open
 4. Blower motor starts
 5. System continuously monitors pressure sensor:
-   - Detects airflow when pressure exceeds threshold (100 ADC counts above baseline)
-   - Hysteresis prevents false triggers (50 ADC count buffer)
+   - Detects airflow when pressure exceeds threshold (5 Pa above baseline)
+   - Hysteresis prevents false triggers (OFF at 2 Pa, requires 2 seconds sustained low)
 6. **At high altitude**: If original sail fails to close, Smart Sail Switch detects airflow and closes relay after confirming stable pressure
 7. Control board sees closed sail circuit -> proceeds with ignition
 8. System monitors for timeout: if airflow lost for 30 seconds, enters error state

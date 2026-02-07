@@ -29,19 +29,15 @@ Pin      | Port | Pin     | Chan   |
 - `digitalWrite(4, ...)` -> controls PB4 (pin 3)
 - `digitalWrite(5, ...)` -> controls PB5 (pin 1)
 
-## Our Circuit Connections
-- PB0 (Arduino 0, pin 5) -> Green LED
-- PB1 (Arduino 1, pin 6) -> Red LED
-- PB2 (Arduino 2, pin 7) -> Potentiometer (ADC1)
-- PB3 (Arduino 3, pin 2) -> Blower Switch
+## Our Circuit Connections (SDP810 I2C Version)
+- PB0 (Arduino 0, pin 5) -> SDP810 SDA (I2C data) + 4.7K pull-up to 5V
+- PB1 (Arduino 1, pin 6) -> Status LED
+- PB2 (Arduino 2, pin 7) -> SDP810 SCL (I2C clock) + 4.7K pull-up to 5V
+- PB3 (Arduino 3, pin 2) -> Sail Switch sense (with 10K pull-down)
 - PB4 (Arduino 4, pin 3) -> Relay Output
-- PB5 (Arduino 5, pin 1) -> Sail Switch
+- PB5 (Arduino 5, pin 1) -> RESET (ISP programming only)
 
-## CRITICAL: For our sensor on PB2 in Wokwi
-**CONFIRMED WORKING:**
-- Circuit: `pot_sensor:SIG` -> `tiny:PB2`
-- Code: `analogRead(1)` reads PB2
-
-NOTE: Wokwi ADC mapping differs from datasheet!
-- Real hardware PB2 = ADC1, use analogRead(1) (confirmed in Wokwi)
-- Do NOT use analogRead(2) - doesn't work in Wokwi
+## I2C Notes
+- SDP810 address: 0x25
+- Bit-banged I2C (no hardware I2C on ATtiny85)
+- 4.7K pull-ups required on both SDA and SCL

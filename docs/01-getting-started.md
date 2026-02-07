@@ -38,7 +38,7 @@ Plan to spread this over several days - don't rush safety-critical work.
 See [hardware/parts-list.md](../hardware/parts-list.md) for complete list with links. Key items:
 
 - ATtiny85 microcontroller chip ($2-3)
-- MPXV5004DP pressure sensor ($15-20)
+- SDP810-500Pa pressure sensor ($15-25) - I2C digital sensor
 - USBtinyISP programmer ($8-15) - to upload code to ATtiny
 - 5V relay module ($2-5)
 - Voltage regulator and basic components ($5-10)
@@ -147,21 +147,22 @@ The ATtiny85 is a tiny microcontroller (the "brain" of your project):
 
 For this project, these limitations don't matter.
 
-## Understanding the MPXV5004DP Sensor
+## Understanding the SDP810-500Pa Sensor
 
 ### What does it do?
 
-Measures the **difference** in air pressure between two points:
-- **Port 1 (P1)**: Connected via tube to blower duct (higher pressure when blower runs)
-- **Port 2 (P2)**: Open to room air (ambient pressure)
-- **Output**: Voltage (1.0V-5.0V) proportional to pressure difference
+Measures the **difference** in air pressure between two ports:
+- **One port**: Connected via tube to blower duct (higher pressure when blower runs)
+- **Other port**: Open to room air (ambient pressure)
+- **Output**: Digital I2C data (±500 Pa range, ~15 Pa typical from RV blower)
 
 ### Why this sensor?
 
+- **High sensitivity** - detects low pressure differentials from RV blowers
+- **Digital I2C output** - more accurate and noise-resistant than analog
 - **Temperature compensated** - works in cold RV winters
-- **Low pressure range** - perfect for blower airflow (not super high pressure)
-- **Analog output** - simple to read with ATtiny
-- **Reliable** - automotive-grade quality
+- **Wide voltage range** - runs on 2.7-5.5V
+- **Reliable** - Sensirion quality
 
 ## Common Questions
 

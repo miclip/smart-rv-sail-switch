@@ -12,7 +12,12 @@
 ### Pressure Sensor
 | Item | Part Number | Quantity | Specs | Notes |
 |------|-------------|----------|-------|-------|
-| MPXV5004DP | MPXV5004DP or MPXV5004DP-ND | 1 | Differential/Gauge, 0-3.92 kPa | Temperature compensated, breakout board versions available |
+| SDP810-500Pa | SDP810-500Pa | 1 | Differential, ±500 Pa, I2C | Sensirion digital sensor, 4-pin, I2C address 0x25 |
+
+### I2C Pull-up Resistors
+| Item | Part Number | Quantity | Specs | Notes |
+|------|-------------|----------|-------|-------|
+| 4.7K ohm resistor | - | 2 | 1/4W through-hole | Pull-ups for SDA and SCL to 5V |
 
 ### Voltage Regulation
 | Item | Part Number | Quantity | Specs | Notes |
@@ -120,7 +125,7 @@
 - **Part substitutions**: Most components have alternatives - contact manufacturer datasheets for equivalent specifications
 - **Quality matters**: Use genuine parts for pressure sensor and voltage regulator
 - **Automotive-grade wire**: Required for furnace installation due to temperature and vibration
-- **Breakout boards**: Recommended for MPXV5004DP - easier to wire than bare sensor
+- **SDP810 wiring**: Sensor has 4 pins - use short wires and ensure solid I2C pull-ups
 
 ## Next Steps
 

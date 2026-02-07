@@ -10,14 +10,16 @@ RV Furnace 12V (Thermostat Line)
          +---[100nF]---[L7805]---[100nF+100uF]--- 5V Rail
          |              |                           |
          |             GND                          +-- ATtiny85 VCC (pin 8)
-         |                                          +-- MPXV5004DP VCC
+         |                                          +-- SDP810 VDD
          |                                          +-- Relay Module VCC
          |
          +---[10K]---+--- PB3 (Sail Switch Input)
                      |
                     GND
 
-MPXV5004DP Vout --- PB2 (ADC Input / Analog)
+SDP810 I2C:
+  SDA --- PB0 (with 4.7K pull-up to 5V)
+  SCL --- PB2 (with 4.7K pull-up to 5V)
 
 ATtiny85 PB4 --- Relay Module Signal (IN)
 (pin 3)
@@ -56,13 +58,13 @@ flowchart TD
     subgraph SmartSwitch["Smart Sail Switch"]
         REG["LM7805<br/>5V Regulator"]
         MCU["ATtiny85<br/>Microcontroller"]
-        SENSOR["MPXV5004DP<br/>Pressure Sensor"]
+        SENSOR["SDP810-500Pa<br/>Pressure Sensor"]
         RELAY["5V Relay<br/>Module"]
 
         REG -->|5V| MCU
         REG -->|5V| SENSOR
         REG -->|5V| RELAY
-        SENSOR -->|Vout Analog| MCU
+        SENSOR -->|I2C SDA/SCL| MCU
         MCU -->|PB4 Control| RELAY
     end
 
@@ -120,26 +122,30 @@ Convert furnace's 12V to regulated 5V for microcontroller and sensor.
 - Only bypass if airflow detected AND timeout occurs without sail closing
 - If sail closes normally (PB3 HIGH), relay stays open (not needed)
 
-### Pressure Sensor (PB2 - ADC)
+### Pressure Sensor (I2C on PB0/PB2)
 **Purpose**: Measure differential pressure = airflow
 
-**MPXV5004DP Connections**:
-- Pin 1 (Vout): to ATtiny PB2
-- Pin 2 (GND): to ground
-- Pin 3 (VCC): to 5V
-- Pin 4 (P1): Pressure port - connect tubing to blower duct
-- Pin 5 (P2): Reference port - leave open to ambient air
-- Pin 6 (P3): Not used (second differential port)
+**SDP810-500Pa Connections** (4-pin sensor):
+- Pin 1 (SCL): to ATtiny PB2 with 4.7K pull-up to 5V
+- Pin 2 (VDD): to 5V (sensor supports 2.7-5.5V)
+- Pin 3 (GND): to ground
+- Pin 4 (SDA): to ATtiny PB0 with 4.7K pull-up to 5V
 
-**Output Voltage**:
-- No airflow (0 kPa): ~1.0V (ADC ~205) - baseline calibrated at startup
-- Typical blower (0.3 kPa): ~1.24V (ADC ~254)
-- Threshold: ~100 ADC counts above baseline for airflow detection
-- Hysteresis: 50 ADC counts below threshold to prevent oscillation
-- Maximum (3.92 kPa): ~4.1V (ADC ~840)
+**I2C Communication**:
+- Address: 0x25
+- Bit-banged I2C (ATtiny85 has no hardware I2C)
+- Command 0x3603 starts continuous measurement
+- Scale factor: 60 (raw/60 = Pa)
+
+**Output Range**:
+- No airflow: ~0 Pa (baseline calibrated at startup with 10-reading average)
+- Typical blower: ~15 Pa
+- Threshold: 5 Pa above baseline for airflow detection
+- Hysteresis: OFF below 2 Pa, requires 2 seconds sustained low reading
 
 **Tubing**:
 - Use 1/8" ID silicone tubing (flexible, temperature resistant)
+- Connect to one port, leave other open to ambient
 - Length: 1-3 feet (minimize restriction)
 - Route away from hot surfaces
 - Secure with zip ties to prevent disconnection
@@ -195,9 +201,9 @@ PB1 or PB0 ---[220-330Ω]---[LED]--- GND
 | 2 | PB3 | Input | Sail switch sense (HIGH when closed, LOW when open) |
 | 3 | PB4 | Output | Relay control (HIGH = close relay/bypass) |
 | 4 | GND | Power | Ground |
-| 5 | PB0 | Output | Green LED (active indicator), ISP MOSI |
-| 6 | PB1 | Output | Red LED (idle indicator), ISP MISO |
-| 7 | PB2 | Input (ADC) | Pressure sensor Vout (analog), ISP SCK |
+| 5 | PB0 | I/O | SDP810 SDA (I2C data), ISP MOSI |
+| 6 | PB1 | Output | Status LED, ISP MISO |
+| 7 | PB2 | I/O | SDP810 SCL (I2C clock), ISP SCK |
 | 8 | VCC | Power | 5V from L7805 regulator |
 
 ## PCB Layout Recommendations
@@ -288,7 +294,7 @@ The project includes a custom PCB designed in EasyEDA Pro and manufactured by JL
 - U4, U5: 2-pin screw terminals
 
 **External Connections:**
-- U1: MPXV5004DP pressure sensor (3-pin connector)
+- U1: SDP810-500Pa pressure sensor (4-pin I2C)
 - U6: KY-019 relay module (3-pin connector)
 - U4: 12V power input from furnace thermostat line
 - U5: Sail switch monitoring connection
